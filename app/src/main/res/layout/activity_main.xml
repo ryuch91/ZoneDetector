@@ -83,5 +83,28 @@
         android:text="@string/start_detecting"
         android:onClick="onButtonClicked"/>
 
+    <TextView
+        android:id="@+id/zoneDetectingToggleButtonLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/detectingButton"
+        android:layout_marginStart="30dp"
+        android:layout_marginTop="30dp"
+        android:text="@string/zone_detecting"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <ToggleButton
+        android:id="@+id/zoneDetectingToggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@+id/zoneDetectingToggleButtonLabel"
+        android:layout_alignBottom="@+id/zoneDetectingToggleButtonLabel"
+        android:layout_marginStart="25dp"
+        android:layout_toEndOf="@+id/zoneDetectingToggleButtonLabel"
+        android:textOn="ON"
+        android:textOff="OFF"
+        android:onClick="onDetectingToggleButtonClicked"/>
+
 </RelativeLayout>
 

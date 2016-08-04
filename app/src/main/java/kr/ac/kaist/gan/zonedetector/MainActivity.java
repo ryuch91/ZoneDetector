@@ -172,6 +172,12 @@ public class MainActivity extends AppCompatActivity {
             ToggleButton toggle = (ToggleButton)findViewById(R.id.backgroundRangingToggleButton);
             toggle.setChecked(true);
         }
+
+        //added manually for check background detecting service is running when returning to main activity
+        if(this.isBackgroundDetectingServiceRunning(this)) {
+            ToggleButton toggle = (ToggleButton)findViewById(R.id.zoneDetectingToggleButton);
+            toggle.setChecked(true);
+        }
     }
 
     @Override
@@ -228,6 +234,19 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //added manually for onclick triggering for Background Zone Detecting Button
+    public void onDetectingToggleButtonClicked(View v) {
+        ToggleButton toggle = (ToggleButton)v;
+        if(toggle.isChecked()) {
+            Log.i("MainActivity", "onDetectingToggleButtonClicked off to on");
+            Intent intent = new Intent(this, ZoneDetectingService.class);
+            startService(intent);
+        } else {
+            Log.i("MainActivity", "onRangingToggleButtonClicked on to off");
+            stopService(new Intent(this, ZoneDetectingService.class));
+        }
+    }
+
     public void onButtonClicked(View v) {
         Button btn = (Button)v;
         if(btn.getId() == R.id.monitoringButton) {
@@ -237,6 +256,7 @@ public class MainActivity extends AppCompatActivity {
             final Intent intent = new Intent(this, RecoRangingActivity.class);
             startActivity(intent);
         } else {
+            //added manually for real time zone detecting activity
             final Intent intent = new Intent(this, ZoneDetectingActivity.class);
             startActivity(intent);
         }
@@ -256,6 +276,17 @@ public class MainActivity extends AppCompatActivity {
         ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
         for(ActivityManager.RunningServiceInfo runningService : am.getRunningServices(Integer.MAX_VALUE)) {
             if(RecoBackgroundRangingService.class.getName().equals(runningService.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //manually made for checking background zone detecting service is running
+    private boolean isBackgroundDetectingServiceRunning(Context context) {
+        ActivityManager am = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+        for(ActivityManager.RunningServiceInfo runningService : am.getRunningServices(Integer.MAX_VALUE)) {
+            if(ZoneDetectingService.class.getName().equals(runningService.service.getClassName())) {
                 return true;
             }
         }

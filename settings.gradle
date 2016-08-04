@@ -1,1 +1,1 @@
-include ':reco-sdk-android_1.1.3', ':app', ':WifiScanner'
+include ':reco-sdk-android_1.1.3', ':app', ':wifiscanner'

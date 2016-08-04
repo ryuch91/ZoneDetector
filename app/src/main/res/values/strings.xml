@@ -29,4 +29,5 @@
     <string name="zone4">Zone-4</string>
 
     <string name="zone_indicating">Your zone is : </string>
+    <string name="zone_detecting">Background Zone Detecting</string>
 </resources>
