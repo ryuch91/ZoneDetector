@@ -22,10 +22,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -34,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Created by iDB_ADB on 2016-07-27.
@@ -83,6 +86,7 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         Log.i("ZoneDetectingService", "onDestroy()");
         this.tearDown();
         super.onDestroy();
+
     }
 
     @Override
@@ -208,6 +212,7 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         Log.i("ZoneDetectingService", "didDetermineStateForRegion()");
         //Write the code when the state of the monitored region is changed
 
+        Log.d("ZoneDetectingService", "didDetermineStateForRegion() - RegionState : " + state.toString());
 
     }
 
@@ -252,6 +257,7 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         Log.i("ZoneDetectingService", "didStartMonitoringForRegion() - " + region.getUniqueIdentifier());
         //Write the code when starting monitoring the region is started successfully
 
+        //start ranging to send JSON data to server
         this.startRangingWithRegion(region);
     }
 
@@ -260,14 +266,23 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         Log.i("ZoneDetectingService", "didRangeBeaconsInRegion() - " + region.getUniqueIdentifier() + " with " + beacons.size() + " beacons");
         //Write the code when the beacons inside of the region is received
 
-        String serverURL = "http://143.248.55.143:8000";
-        Log.d("ZoneDetectingService","didRangeBeaconsInRegion() - " + "we will connect to server : " + serverURL);
+        //String serverURL = "http://143.248.55.143:8000";
+        //Log.d("ZoneDetectingService","didRangeBeaconsInRegion() - " + "we will connect to server : " + serverURL);
         mRangedBeacons = (ArrayList) beacons;
         String reqMsg;
-        String responseMsg;
+        String responseMsg=null;
 
         reqMsg = makeJsonMsgfromBeacons(mRangedBeacons);
-        responseMsg = sendJsonDataToServer(reqMsg, serverURL);
+
+        //Open AsyncTask and do network task
+        BeaconInfoSendingTask bisTask = new BeaconInfoSendingTask();
+        try{
+            responseMsg = bisTask.execute(reqMsg).get();
+        }catch(InterruptedException e){
+            e.printStackTrace();
+        }catch(ExecutionException e){
+            e.printStackTrace();
+        }
 
         popupNotification(responseMsg);
     }
@@ -382,9 +397,11 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         return retObj;
     }
 
+
     //send Json data to server using POST method
     public String sendJsonDataToServer(String JsonMsg, String ServerURL){
         OutputStream outputStream;
+        BufferedWriter bufferedWriter;
         InputStream inputStream;
         ByteArrayOutputStream baos;
         HttpURLConnection httpURLConn;
@@ -393,7 +410,7 @@ public class ZoneDetectingService extends Service implements RECORangingListener
         try{
             URL url = new URL(ServerURL);
             httpURLConn = (HttpURLConnection)url.openConnection();
-            Log.d("ZoneDetectingService","sendJsonDataToServer() - " + "httpURLConnection status is = " + httpURLConn);
+            Log.d("ZoneDetectingService", "sendJsonDataToServer() - " + "httpURLConnection status is = " + httpURLConn);
             httpURLConn.setConnectTimeout(5 * 1000);
             httpURLConn.setReadTimeout(5 * 1000);
             httpURLConn.setRequestMethod("POST");
@@ -403,11 +420,20 @@ public class ZoneDetectingService extends Service implements RECORangingListener
             httpURLConn.setDoOutput(true);
             httpURLConn.setDoInput(true);
 
+            //Log.d("ZoneDetectingService","sendJsonDataToServer() - " + "response code is : " + httpURLConn.getResponseCode());
+
             outputStream = httpURLConn.getOutputStream();
-            outputStream.write(JsonMsg.getBytes());
-            outputStream.flush();
+            bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
+            bufferedWriter.write(JsonMsg);
+            bufferedWriter.flush();
+            bufferedWriter.close();
+            outputStream.close();
+            //outputStream.flush();
+
+            httpURLConn.connect();
 
             int responseCode = httpURLConn.getResponseCode();
+            Log.d("ZoneDetectingService","sendJsonDataToServer() - " + "response code is : " + responseCode);
             if(responseCode == HttpURLConnection.HTTP_OK){
                 inputStream = httpURLConn.getInputStream();
                 baos = new ByteArrayOutputStream();
@@ -419,8 +445,11 @@ public class ZoneDetectingService extends Service implements RECORangingListener
                 }
                 byteData = baos.toByteArray();
                 response = new String(byteData);
-                Log.i("ZoneDetectingService","DATA response = " + response);
+                Log.i("ZoneDetectingService","sendJsonDataToServer() - DATA response = " + response);
             }
+
+            httpURLConn.disconnect();
+
         }catch(MalformedURLException e){
             e.printStackTrace();
             return null;
@@ -429,6 +458,7 @@ public class ZoneDetectingService extends Service implements RECORangingListener
             return null;
         }catch(Exception e){
             Log.e("ZoneDetectingService","sendJsonDataToServer()");
+            e.printStackTrace();
             return null;
         }
         return response;
