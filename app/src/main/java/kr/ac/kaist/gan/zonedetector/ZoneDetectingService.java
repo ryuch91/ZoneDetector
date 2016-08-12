@@ -2,10 +2,14 @@ package kr.ac.kaist.gan.zonedetector;
 
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.provider.Settings;
 import android.support.v4.app.NotificationCompat;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.perples.recosdk.RECOBeacon;
@@ -36,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -55,6 +60,8 @@ public class ZoneDetectingService extends Service implements RECORangingListener
     private ArrayList<RECOBeaconRegion> mRegions;
 
     private ArrayList<RECOBeacon> mRangedBeacons;
+
+    private final static String CACHED_DEVICE_ID = "CachedDeviceID";
 
     @Override
     public void onCreate() {
@@ -284,9 +291,13 @@ public class ZoneDetectingService extends Service implements RECORangingListener
             e.printStackTrace();
         }
 
-        popupNotification(responseMsg);
+        //popupNotification(responseMsg);
     }
 
+    /**
+     * 사용자에게 팝업 메시지를 띄워줍니다.
+     * @param msg
+     */
     private void popupNotification(String msg) {
         Log.i("ZoneDetectingService", "popupNotification()");
         String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
@@ -331,9 +342,18 @@ public class ZoneDetectingService extends Service implements RECORangingListener
     //Make JsonMsg from beacon info
     public String makeJsonMsgfromBeacons(Collection<RECOBeacon> beacons){
         String resultMsg = "";
+        String deviceId = "";
         JSONObject jsonObject = new JSONObject();
         JSONObject beaconObject = new JSONObject();
         JSONArray beaconArray = new JSONArray();
+
+        //get device id
+        deviceId = getDeviceUUID(ZoneDetectingService.this);
+        try{
+            jsonObject.put("device_uuid",deviceId);
+        }catch(JSONException e){
+            e.printStackTrace();
+        }
 
         if(beacons.size()>=4){
             try{
@@ -462,5 +482,35 @@ public class ZoneDetectingService extends Service implements RECORangingListener
             return null;
         }
         return response;
+    }
+
+
+    /**
+     * 안드로이드 디바이스의 UUID를 리턴해줍니다.
+     * 매개변수로는 Context 가 들어가는데 MainActivity.this 등이 들어가주면 됩니다.
+     */
+    private String getDeviceUUID(Context mContext){
+        SharedPreferences sp = mContext.getSharedPreferences(CACHED_DEVICE_ID,0);
+        String deviceId = sp.getString("deviceId","");
+        if(deviceId == ""){
+            cacheDeviceUUID(ZoneDetectingService.this);
+            deviceId = sp.getString("deviceId","");
+        }
+        return deviceId;
+    }
+
+    private void cacheDeviceUUID(Context mContext){
+        final TelephonyManager tm = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
+        final String tmDevice, tmSerial, androidId;
+        tmDevice = "" + tm.getDeviceId();
+        tmSerial = "" + tm.getSimSerialNumber();
+        androidId = "" + android.provider.Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        UUID deviceUuid = new UUID(androidId.hashCode(), ((long)tmDevice.hashCode() << 32) | tmSerial.hashCode());
+        String deviceId = deviceUuid.toString();
+
+        SharedPreferences sp = getSharedPreferences(CACHED_DEVICE_ID, 0);
+        SharedPreferences.Editor editor = sp.edit();
+        editor.putString("deviceId",deviceId).apply();
+        //editor.commit();
     }
 }
